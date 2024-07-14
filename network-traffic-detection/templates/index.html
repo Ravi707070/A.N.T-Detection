@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" href="/network-traffic-detection/images/pngegg (1).png" type="image/l-icon">
+    <title>Network Traffic Analysis</title>
+
+
+</head>
+<body class="bg-black  h-screen flex justify-center items-center">   
+     <div class="container w-1/2 h-auto bg-blue-300 rounded-2xl p-6 mx-auto">
+        <class="w-48 h-48 mx-auto mb-4">
+        <h1 class="text-2xl text-white font-bold mb-4">Upload Network Traffic Data</h1>
+        <form id="uploadForm" class="mb-4" enctype="multipart/form-data">
+            <input type="file" id="fileInput" class="border rounded-md p-2 mb-4" accept=".csv">
+            <button type="submit" class="bg-blue-500 text-white p-2 rounded">Upload and Analyze</button>
+            <p class="text-xs">upto 200mb, Only CSV files</p>
+        </form>
+        <div id="uploadStatus" class="text-green-500"></div>
+        <div id="uploadError" class="text-red-500"></div>
+        <div id="analysisResult" class="text-green-500"></div>
+        <div id="anomalyPercentage" class="text-red-500"></div>
+
+        <h2 class="text-xl font-bold mb-4 text-white">Add Comment</h2>
+        <form id="commentForm" class="mb-4">
+            <input type="number" id="analysisIdInput" class="border rounded-md p-2 mb-4"
+                placeholder="Enter Analysis ID">
+            <input type="text" id="commentInput" class="border rounded-md p-2 mb-4" placeholder="Enter your comment">
+            <button type="submit" class="bg-blue-500 text-white p-2 rounded">Add Comment</button>
+        </form>
+        <div id="commentStatus" class="text-green-500"></div>
+
+        <h2 class="text-xl text-white font-bold mb-4">Historical Analyses</h2>
+        <div id="historicalAnalyses" class="text-gray-700"></div>
+    </div>
+        <script>
+        document.getElementById('uploadForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            var formData = new FormData();
+            var fileInput = document.getElementById('fileInput');
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/api/traffic-data', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('uploadStatus').innerText = 'File uploaded and analyzed successfully!';
+                        document.getElementById('uploadError').innerText = '';
+                        document.getElementById('analysisResult').innerText = 'Analysis Result: ' + data.results;
+                        document.getElementById('anomalyPercentage').innerText = 'Anomalous Traffic Detected: ' + data.anomalyPercentage + '%';
+                    } else {
+                        document.getElementById('uploadStatus').innerText = '';
+                        document.getElementById('uploadError').innerText = data.message;
+                        document.getElementById('analysisResult').innerText = '';
+                        document.getElementById('anomalyPercentage').innerText = '';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        document.getElementById('commentForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            var analysisId = document.getElementById('analysisIdInput').value;
+            var comment = document.getElementById('commentInput').value;
+
+            fetch('/api/analysis/' + analysisId + '/comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ comment: comment })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('commentStatus').innerText = 'Comment added successfully!';
+                    } else {
+                        document.getElementById('commentStatus').innerText = 'Error adding comment';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        // Fetch and display historical analyses
+        function fetchHistoricalAnalyses() {
+            fetch('/api/analyses')
+                .then(response => response.json())
+                .then(data => {
+                    const historicalAnalysesDiv = document.getElementById('historicalAnalyses');
+                    historicalAnalysesDiv.innerHTML = '';  // Clear previous content
+                    data.analyses.forEach(analysis => {
+                        const analysisDiv = document.createElement('div');
+                        analysisDiv.className = 'mb-4 p-4 border rounded bg-white';
+                        analysisDiv.innerHTML = `
+                            <h3 class="text-lg font-bold">Analysis ID: ${analysis.analysisId}</h3>
+                            <p><strong>File Name:</strong> ${analysis.fileName}</p>
+                            <p><strong>File Size:</strong> ${analysis.fileSize} bytes</p>
+                            <p><strong>Result:</strong> ${analysis.result}</p>
+                            <p><strong>Anomalous Traffic Detected:</strong> ${analysis.anomalyPercentage}%</p>
+                            <p><strong>Comments:</strong> ${analysis.comments.join(', ')}</p>
+                        `;
+                        historicalAnalysesDiv.appendChild(analysisDiv);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Fetch historical analyses on page load
+        fetchHistoricalAnalyses();
+    </script>
+
+</body>
+
+</html>
